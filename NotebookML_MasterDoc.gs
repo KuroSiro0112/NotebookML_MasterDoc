@@ -118,18 +118,33 @@ function rebuildQueueFromRoot_(){
 
 /***** マスターDoc ID の永続化（フォルダ単位） **********************************/
 function getMasterIdKey_(folderId){ return `MASTER_DOC_${folderId}`; }
-function getOrCreateMasterDocForFolder_(folderId, folderName){
+function getOrCreateMasterDocForFolder_(folderId, folderName, folderPath){
   const props=PropertiesService.getScriptProperties();
-  const saved=props.getProperty(getMasterIdKey_(folderId));
+  const key=getMasterIdKey_(folderId);
+  const saved=props.getProperty(key);
+  let masterId;
   try{
-    if(saved){ DocumentApp.openById(saved); return saved; }
+    if(saved){ DocumentApp.openById(saved); masterId = saved; }
   }catch(e){ /* 落ちていたら作り直し */ }
-  const dest=getFolderByUrlOrId_(DEST_FOLDER_INPUT);
-  const name = `NotebookLM_Master_${folderName}`;
-  const doc  = DocumentApp.create(name);
-  DriveApp.getFileById(doc.getId()).moveTo(dest);
-  props.setProperty(getMasterIdKey_(folderId), doc.getId());
-  return doc.getId();
+
+  // 保存先のフォルダ階層を folderPath の第3階層まで作成
+  const destRoot=getFolderByUrlOrId_(DEST_FOLDER_INPUT);
+  const segments=String(folderPath||'').split('/').slice(0,-1).slice(0,3);
+  let destFolder=destRoot;
+  for(const name of segments){
+    const it=destFolder.getFoldersByName(name);
+    destFolder = it.hasNext() ? it.next() : destFolder.createFolder(name);
+  }
+
+  if(!masterId){
+    const name = `NotebookLM_Master_${folderName}`;
+    const doc  = DocumentApp.create(name);
+    masterId = doc.getId();
+    props.setProperty(key, masterId);
+  }
+
+  DriveApp.getFileById(masterId).moveTo(destFolder);
+  return masterId;
 }
 
 /***** Googleドキュメントの本文を取得（上限考慮） ******************************/
@@ -145,7 +160,7 @@ function fetchDocText_(docId){
 /***** フォルダ1件を処理（Queue から呼ばれる中核） *****************************/
 function buildOrUpdateMasterForSingleFolder(folderId, folderPath, folderName, opt={}){
   const folder = DriveApp.getFolderById(folderId);
-  const masterId = getOrCreateMasterDocForFolder_(folderId, folderName);
+  const masterId = getOrCreateMasterDocForFolder_(folderId, folderName, folderPath);
   const master   = DocumentApp.openById(masterId);
   const body     = master.getBody();
   // クリア
