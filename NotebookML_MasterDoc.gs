@@ -119,6 +119,11 @@ function rebuildQueueFromRoot_(){
 /***** マスターDoc ID の永続化（フォルダ単位） **********************************/
 function getMasterIdKey_(folderId){ return `MASTER_DOC_${folderId}`; }
 function getOrCreateMasterDocForFolder_(folderId, folderName, folderPath){
+
+  // folderId は URL/ID どちらでも受け付ける
+  folderId = getIdFromUrlOrId_(folderId);
+  if(!folderId) throw new Error('folderId is required');
+
   const props=PropertiesService.getScriptProperties();
   const key=getMasterIdKey_(folderId);
   const saved=props.getProperty(key);
@@ -159,6 +164,9 @@ function fetchDocText_(docId){
 
 /***** フォルダ1件を処理（Queue から呼ばれる中核） *****************************/
 function buildOrUpdateMasterForSingleFolder(folderId, folderPath, folderName, opt={}){
+  // folderId は URL/ID どちらでも受け付ける
+  folderId = getIdFromUrlOrId_(folderId);
+  if(!folderId) throw new Error('folderId is required');
   const folder = DriveApp.getFolderById(folderId);
   const masterId = getOrCreateMasterDocForFolder_(folderId, folderName, folderPath);
   const master   = DocumentApp.openById(masterId);
