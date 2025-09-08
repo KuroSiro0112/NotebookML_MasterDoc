@@ -4,6 +4,10 @@ const ROOT_FOLDER_INPUT = 'https://drive.google.com/drive/folders/1jbHEIottL4zAn
 // 生成/更新したマスターDocの保管先
 const DEST_FOLDER_INPUT  = 'https://drive.google.com/drive/folders/1WjqZqfeII7lY1Bmndl2ZcvEcrYGaQ9Tl';
 
+// 出力構成
+const DEST_MODE = 'hierarchical'; // 'flat' ならフラット配置, 'hierarchical' なら階層構造
+const DEST_MAX_DEPTH = 3;         // 階層モードで作成する最大階層数 (0=制限なし)
+
 // 走査
 const RECURSIVE = true;              // サブフォルダも処理
 // 出力オプション
@@ -132,13 +136,16 @@ function getOrCreateMasterDocForFolder_(folderId, folderName, folderPath){
     if(saved){ DocumentApp.openById(saved); masterId = saved; }
   }catch(e){ /* 落ちていたら作り直し */ }
 
-  // 保存先のフォルダ階層を folderPath の第3階層まで作成
+  // 保存先のフォルダ階層を設定に応じて作成
   const destRoot=getFolderByUrlOrId_(DEST_FOLDER_INPUT);
-  const segments=String(folderPath||'').split('/').slice(0,-1).slice(0,3);
   let destFolder=destRoot;
-  for(const name of segments){
-    const it=destFolder.getFoldersByName(name);
-    destFolder = it.hasNext() ? it.next() : destFolder.createFolder(name);
+  if(DEST_MODE==='hierarchical'){
+    const segments=String(folderPath||'').split('/').slice(0,-1);
+    const depth=DEST_MAX_DEPTH>0?DEST_MAX_DEPTH:segments.length;
+    for(const name of segments.slice(0, depth)){
+      const it=destFolder.getFoldersByName(name);
+      destFolder = it.hasNext() ? it.next() : destFolder.createFolder(name);
+    }
   }
 
   if(!masterId){
